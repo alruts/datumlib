@@ -1,3 +1,4 @@
+# %%
 from collections import namedtuple
 from functools import reduce
 from typing import Any, Callable, Iterable, List, NamedTuple, Tuple, TypeVar
@@ -35,46 +36,70 @@ def pipe(*funcs: Callable[[Any], Any]) -> Callable[[Any], Any]:
     return lambda x: reduce(lambda acc, f: f(acc), funcs, x)
 
 
-def pipeline_dict(
-    steps: dict[str, Callable[[Any], Any]], *, has_scope: bool = False
-) -> Callable[[Any], Any | tuple[Any, dict[str, Any]]]:
+def dict_pipe(
+    func_registry: dict[str, Callable[[Any], Any]], *, aux_result=False
+) -> Callable[[Any], dict[str, Any] | tuple[dict[str, Any], Any]]:
     """Create left-to-right composition of functions with named results.
 
-    Default returns only the final result (the last computed step):
-
-    >>> pipeline = pipeline_dict(
+    ```python
+    >>> pipeline = dict_pipe(
     ...     {
     ...         "after fst": lambda x: x + 1,
     ...         "after snd": lambda x: x + 2,
-    ...         "final": lambda x: x / 2,
+    ...         "result": lambda x: x / 2,
     ...     }
     ... )
     >>> pipeline(0)
-    1.5
+    {'after fst': 1, 'after snd': 3, 'result': 1.5}
 
-    With has_scope=True, returns a tuple: (final result, dict of all steps):
+    ```
 
-    >>> pipeline = pipeline_dict(
+    Optionally set the `aux_result` kwd only flag to return the final output
+    ```python
+    >>> pipeline = dict_pipe(
     ...     {
     ...         "after fst": lambda x: x + 1,
     ...         "after snd": lambda x: x + 2,
-    ...         "final": lambda x: x / 2,
+    ...         "result": lambda x: x / 2,
     ...     },
-    ...     has_scope=True,
+    ...     aux_result=True,
     ... )
     >>> pipeline(0)
-    (1.5, {'after fst': 1, 'after snd': 3, 'final': 1.5})
+    ({'after fst': 1, 'after snd': 3, 'result': 1.5}, 1.5)
+
+    ```
     """
+    state = {}
 
     def _pipe(x):
-        state = {}
-        for name, f in steps.items():
+        for name, f in func_registry.items():
             x = f(x)
-            if has_scope:
-                state[name] = x
-        return (x, state) if has_scope else x
+            state.update({name: x})
+        if aux_result:
+            return state, x
+        else:
+            return state
 
     return _pipe
+
+
+def compose(*funcs: Callable[[Any], Any]) -> Callable[[Any], Any]:
+    """Create right-to-left composition of functions.
+    >>> compose(lambda x: x * 2, lambda x: x + 1)(1) # (1 + 1) * 2 = 4
+    4
+    """
+    return lambda x: reduce(lambda acc, f: f(acc), reversed(funcs), x)
+
+
+def tap(func: Callable[[X], Any]) -> Callable[[X], X]:
+    """Runs a function with the input and returns the input unchanged
+    (useful for debugging).
+
+    >>> pipe(lambda x: x + 1, tap(print), lambda x: x + 1)(1)
+    2
+    3
+    """
+    return lambda x: (func(x), x)[1]
 
 
 def juxt(*funcs: Callable[[Any], Any]) -> Callable[[Any], Tuple[Any]]:

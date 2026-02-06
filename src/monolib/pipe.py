@@ -1,0 +1,39 @@
+from typing import Any, Callable, Generic, TypeVar
+
+from tqdm import tqdm
+
+from monolib.containers import Mono, MonoCollection
+
+T = TypeVar("T", Mono, MonoCollection)
+
+
+class PipelineDict(Generic[T]):
+    def __init__(self, steps: dict[str, Callable[[Mono], Any]]):
+        self.steps = steps
+
+    def __call__(
+        self,
+        x: T,
+        *,
+        has_scope: bool = False,
+        progress_meter: bool = False,
+    ) -> T | tuple[T, dict[str, T]]:
+        scoped_results: dict[str, T] = {}
+
+        # placeholder
+        iter = (
+            tqdm(
+                self.steps.items(),
+                desc=f"Processing {x.__class__.__name__}",
+                unit="step",
+            )
+            if progress_meter
+            else self.steps.items()
+        )
+
+        for name, fn in iter:
+            x = x.map_data(fn)
+            if has_scope:
+                scoped_results[name] = x
+
+        return (x, scoped_results) if has_scope else x

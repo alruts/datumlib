@@ -1,4 +1,10 @@
-from typing import Any, Callable, NamedTuple, Optional, Sequence
+from typing import (
+    Any,
+    Callable,
+    NamedTuple,
+    Optional,
+    Sequence,
+)
 
 
 class Mono(NamedTuple):
@@ -27,7 +33,7 @@ class Mono(NamedTuple):
     sample_rate: float | int
     tags: dict = {}
 
-    def apply(self, fn):
+    def apply(self, fn: Callable[[Any], Any]):
         """Apply `fn` to the data field of the `Mono` container and return a transformed
         container
 
@@ -38,7 +44,22 @@ class Mono(NamedTuple):
 
         ```
         """
-        return Mono(fn(self.data), self.sample_rate, self.tags)
+        new_data = fn(self.data)
+        return Mono(new_data, self.sample_rate, self.tags)
+
+    def map_data(self, fn: Callable[["Mono"], Any]):
+        """Apply `fn` to the whole `Mono` container and return a transformed
+        container
+
+        ```python
+        >>> x = mono(1, 44100)
+        >>> x.map_data(lambda x: x.data + 1)
+        Mono(data=2, sample_rate=44100, tags={})
+
+        ```
+        """
+        new_data = fn(self)
+        return Mono(new_data, self.sample_rate, self.tags)
 
     def map_tags(self, fn: Callable[["Mono"], dict]) -> "Mono":
         """
@@ -110,7 +131,7 @@ class MonoCollection(NamedTuple):
     entries: tuple[Optional[Mono], ...]
     tags: dict = {}
 
-    def apply(self, fn, progress_meter=False):
+    def apply(self, fn: Callable[[Any], Any]):
         """Apply `fn` to the data field of each `Mono` container and return a
         transformed collection, with a progress bar.
 
@@ -128,21 +149,74 @@ class MonoCollection(NamedTuple):
         )
 
         """
-        if progress_meter:
-            from tqdm import tqdm
+        transformed_entries = [x.apply(fn) if x else None for x in self.entries]
+        return collect(*transformed_entries, tags=self.tags)
 
-            transformed_entries = [
-                x.apply(fn) if x else None
-                for x in tqdm(self.entries, desc="Processing", unit="entry")
-            ]
-        else:
-            transformed_entries = [x.apply(fn) if x else None for x in self.entries]
+    def map_data(self, fn: Callable[["Mono"], Any]):
+        """Apply `fn` to the data field of each `Mono` container and return a
+        transformed collection, with a progress bar.
+
+        ### Example:
+
+        >>> x = mono(1, 1)
+        >>> xx = collect(x, x)
+        >>> xx.map_data(lambda x: x.data + 1)
+        MonoCollection(
+          entries=(
+            Mono(data=2, sample_rate=1, tags={}),
+            Mono(data=2, sample_rate=1, tags={}),
+          ),
+          tags={}
+        )
+
+        """
+        transformed_entries = [x.map_data(fn) if x else None for x in self.entries]
         return collect(*transformed_entries, tags=self.tags)
 
     @property
     def valid_entries(self) -> list[Mono]:
         """Return a list of non-None Mono entries."""
         return [x for x in self.entries if x is not None]
+
+    def group_by(self, key: str) -> dict[str, "MonoCollection"]:
+        """
+        Returns a dictionary of MonoCollections grouped by unique tag values for a given key.
+
+        >>> x1 = mono([1], 44100, {"label": "a"})
+        >>> x2 = mono([2], 44100, {"label": "b"})
+        >>> x3 = mono([3], 44100, {"label": "a"})
+        >>> collection = collect(x1, x2, x3)
+        >>> grouped = collection.group_by("label")
+        >>> sorted(grouped.keys())
+        ['a', 'b']
+        >>> [m.data for m in grouped['a'].entries if m is not None]
+        [[1], [3]]
+        >>> [m.data for m in grouped['b'].entries if m is not None]
+        [[2]]
+
+        # Edge case: empty collection
+        >>> empty_collection = collect()
+        >>> empty_collection.group_by("label")
+        {}
+        """
+        unique_tags = set(self.get_tags(key))
+        return {tag: self.filter(lambda m: m.tags[key] == tag) for tag in unique_tags}
+
+    def get_tags(self, key: str) -> list:
+        """
+        Return a list of tag values for the given key from all valid Mono entries.
+
+        >>> x1 = mono([1], 44100, {"label": "a"})
+        >>> x2 = mono([2], 44100, {"label": "b"})
+        >>> collection = collect(x1, x2)
+        >>> collection.get_tags("label")
+        ['a', 'b']
+
+        # Edge case: no entries
+        >>> collect().get_tags("label")
+        []
+        """
+        return [m.tags[key] for m in self.valid_entries]
 
     def map_tags(self, fn: Callable[[Mono], dict]) -> "MonoCollection":
         """
@@ -209,7 +283,7 @@ class MonoCollection(NamedTuple):
         return MonoCollection(self.entries, self.tags | {key: value})
 
     def map_collection_tags(
-        self, fn: Callable[[dict, "MonoCollection"], dict]
+        self, fn: Callable[["MonoCollection"], dict]
     ) -> "MonoCollection":
         """
         Update the metadata of the MonoCollection itself (not individual entries) using a function.
@@ -390,7 +464,9 @@ def partition(
             for x in collection.entries
         )
     )
-    return MonoCollection(tuple(filtered)), MonoCollection(tuple(rest))
+    return MonoCollection(tuple(filtered), collection.tags), MonoCollection(
+        tuple(rest), collection.tags
+    )
 
 
 # helper for merge
