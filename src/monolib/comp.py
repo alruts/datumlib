@@ -1,4 +1,3 @@
-# %%
 from collections import namedtuple
 from functools import reduce
 from typing import Any, Callable, Iterable, List, NamedTuple, Tuple, TypeVar

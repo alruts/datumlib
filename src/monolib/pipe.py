@@ -32,7 +32,7 @@ class PipelineDict(Generic[T]):
         )
 
         for name, fn in iter:
-            x = x.map_data(fn)
+            x = fn(x)
             if has_scope:
                 scoped_results[name] = x
 

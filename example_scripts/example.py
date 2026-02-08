@@ -18,7 +18,7 @@ from monolib.acoustics import (
 )
 from monolib.array_ops import normalize
 from monolib.containers import Mono, collect, mono
-from monolib.mono_utils import mono_lift
+from monolib.mono_utils import data_lift
 from monolib.pipe import PipelineDict
 
 # ---------------------------------------------------------------------
@@ -95,7 +95,7 @@ def truncate(m: Mono):
 
 
 # lift array function to operate on mono inputs
-normalize_func = mono_lift(normalize)
+normalize_func = data_lift(normalize)
 
 # define a preprocessing pipeline. This will sequentially process
 # the signals in `collection` and return an updated collection

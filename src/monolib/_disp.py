@@ -29,7 +29,7 @@ def display_mono(m: Mono):
     console.print(tree)
 
 
-def visualize_mono_collection(mc: "MonoCollection"):
+def display_collection(mc: "MonoCollection"):
     """
     Print a tree-style visualization of a MonoCollection object with aesthetic colors.
     """
