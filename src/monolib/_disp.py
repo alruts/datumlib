@@ -29,22 +29,39 @@ def display_mono(m: Mono):
     console.print(tree)
 
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.tree import Tree
+
+console = Console()
+
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.tree import Tree
+
+console = Console()
+
+
 def display_collection(mc: "MonoCollection"):
     """
-    Print a tree-style visualization of a MonoCollection object with aesthetic colors.
+    Print a MonoCollection object with collection tags as a list
+    and entries as a tree, wrapped in a rounded panel.
     """
-    root = Tree("[#c792ea]MonoCollection[/#c792ea]", guide_style="#9da5b4")
 
-    # Collection-level tags
-    tags_tree = root.add("[#89ddff]collection tags[/#89ddff]")
+    # Collection tags as a table/list
     if mc.tags:
+        tags_table = Table(show_header=False, box=None, pad_edge=False)
         for key, value in mc.tags.items():
-            tags_tree.add(f"[#f07178]{key}[/#f07178]: [#ffcb6b]{value}[/#ffcb6b]")
+            tags_table.add_row(
+                f"[#f07178]{key}[/#f07178]", f"[#ffcb6b]{value}[/#ffcb6b]"
+            )
     else:
-        tags_tree.add("[#7f848e]No collection tags[/#7f848e]")
+        tags_table = "[#7f848e]No collection tags[/#7f848e]"
 
-    # Entries
-    entries_tree = root.add(
+    # Entries as a tree
+    entries_tree = Tree(
         f"[#89ddff]entries[/#89ddff] ([#ffcb6b]{len(mc.entries)}[/#ffcb6b])"
     )
     if mc.entries:
@@ -53,10 +70,8 @@ def display_collection(mc: "MonoCollection"):
                 entries_tree.add(f"[#7f848e]Entry {i}: None[/#7f848e]")
                 continue
 
-            mono_tree = entries_tree.add(f"[bold #c792ea]Mono Entry {i}[/bold #c792ea]")
-            mono_tree.add(
-                f"[#89ddff]data[/#89ddff]: [#ffcb6b]{entry.data.__repr__()}[/#ffcb6b]"
-            )
+            mono_tree = entries_tree.add(f"[bold #c792ea]Mono {i}[/bold #c792ea]")
+            mono_tree.add(f"[#89ddff]data[/#89ddff]: [#ffcb6b]{entry.data!r}[/#ffcb6b]")
             mono_tree.add(
                 f"[#89ddff]sample_rate[/#89ddff]: [#f78c6c]{entry.sample_rate}[/#f78c6c]"
             )
@@ -72,4 +87,15 @@ def display_collection(mc: "MonoCollection"):
     else:
         entries_tree.add("[#7f848e]No entries[/#7f848e]")
 
-    console.print(root)
+    # Combine tags and tree into a single panel
+    panel_content = Table.grid(padding=(0, 1))
+    panel_content.add_row("[bold green]Collection Tags[/bold green]")
+    panel_content.add_row(tags_table)
+    panel_content.add_row(entries_tree)
+
+    panel = Panel(
+        panel_content,
+        title="[bold cyan]MonoCollection[/bold cyan]",
+        border_style="bright_blue",
+    )
+    console.print(panel)

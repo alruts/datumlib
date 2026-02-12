@@ -1,4 +1,4 @@
-from typing import Any, Callable, Generic, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from tqdm import tqdm
 
@@ -8,7 +8,7 @@ T = TypeVar("T", Mono, MonoCollection)
 
 
 class PipelineDict(Generic[T]):
-    def __init__(self, steps: dict[str, Callable[[Mono], Any]]):
+    def __init__(self, steps: dict[str, Callable[[T], T]]):
         self.steps = steps
 
     def __call__(
@@ -31,8 +31,8 @@ class PipelineDict(Generic[T]):
             else self.steps.items()
         )
 
-        for name, fn in iter:
-            x = fn(x)
+        for name, func in iter:
+            x = func(x)
             if has_scope:
                 scoped_results[name] = x
 

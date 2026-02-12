@@ -11,9 +11,8 @@ from monolib.containers import (
     MonoCollection,
     collect,
 )
-from monolib.mono_utils import (
-    time,
-)
+
+from monolib.helpers import time
 
 
 def _find_x_for_y(p_std: Polynomial, y_target: float) -> float:

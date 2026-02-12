@@ -47,4 +47,4 @@ This abstraction allows us to define composable signal processing transformation
 ## Chainable transformations
 
 
-## Thats it
+## Pretty printing

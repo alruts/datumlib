@@ -1,5 +1,4 @@
-# %%
-
+from logging import warning
 from typing import (
     Any,
     Callable,
@@ -15,14 +14,15 @@ R = TypeVar("R", bound="Mono")
 
 
 class Mono(NamedTuple):
-    """Data container for a mono signal. A `Mono` object is a NamedTuple which
-    contains the following fields:
+    """Data container for a 1D signal attached with relevant meta data. A `Mono`
+    object is a NamedTuple which contains the following fields:
 
     - data (Any): The data to be stored in the container.
     - sample_rate (float): The sample rate of the data.
     - tags (dict): Meta data in the form of a dictionary. Default is an empty
     dictionary.
 
+    ```
     >>> x = Mono(1.0, 1000, {"some_number": 42})
     >>> x
     Mono(data=1.0, sample_rate=1000, tags={'some_number': 42})
@@ -34,6 +34,7 @@ class Mono(NamedTuple):
     >>> x.tags["some_number"]
     42
     >>> x.tags['x'] = 'x'
+    ```
 
     """
 
@@ -169,7 +170,7 @@ def collect(*monos: Optional[Mono], tags: dict = {}) -> MonoCollection:
 
 def partition(
     collection: MonoCollection,
-    masking_fn: Callable[[Mono], bool],
+    masking_func: Callable[[Mono], bool],
 ) -> tuple[MonoCollection, MonoCollection]:
     """Splits `collection` into two separate `MonoCollection` objects based on
     a predicate function.
@@ -204,7 +205,7 @@ def partition(
     ```
     ### Args:
     - collection (`MonoCollection`): The it collection of `Mono` objects.
-    - masking_fn (`Callable[[Mono], bool]`): A function that returns `True`
+    - masking_func (`Callable[[Mono], bool]`): A function that returns `True`
       for elements to include in the first output collection, and `False` for
       the second.
 
@@ -217,7 +218,7 @@ def partition(
 
     filtered, rest = zip(
         *(
-            (x, None) if x is None or masking_fn(x) else (None, x)
+            (x, None) if x is None or masking_func(x) else (None, x)
             for x in collection.entries
         )
     )
@@ -265,78 +266,103 @@ def merge(*collections: MonoCollection) -> MonoCollection:
     """
     entries = zip(*(c.entries for c in collections))
     merged = tuple(_check_and_pick(xs) for xs in entries)
-    return MonoCollection(merged)
+
+    # check if all tags are the same
+    hashable_dicts = {tuple(sorted(c.tags.items())) for c in collections}
+    if len(hashable_dicts) != 1:
+        warning(
+            "Tags for collections to be merged do not match!, using tags from the first collection."
+        )
+
+    tags = collections[0].tags
+    return MonoCollection(merged, tags=tags)
 
 
 # maps
 
 
-def over_data(m: Mono, fn: Callable[[Any], Any]) -> Mono:
+def over_data(func: Callable[[Any], Any]) -> Callable[[Mono], Mono]:
     """Apply `fn` to the data field of the `Mono` container and return a transformed
     container
 
     ```python
     >>> x = mono(1, 44100)
-    >>> over_data(x, lambda x: x + 1)
+    >>> over_data(lambda x: x + 1)(x)
     Mono(data=2, sample_rate=44100, tags={})
 
     ```
     """
-    new_data = fn(m.data)
-    return Mono(new_data, m.sample_rate, m.tags)
+
+    def _over_data(m: Mono) -> Mono:
+        new_data = func(m.data)
+        return Mono(new_data, m.sample_rate, m.tags)
+
+    return _over_data
 
 
-def map_data(m: Mono, fn: Callable[[Mono], Any]) -> Mono:
+def map_data(func: Callable[[Mono], Any]) -> Callable[[Mono], Mono]:
     """Apply `fn` to the whole `Mono` container and return a transformed
     container
 
     ```python
     >>> x = mono(1, 44100)
-    >>> map_data(x, lambda x: x.data + 1)
+    >>> map_data(lambda x: x.data + 1)(x)
     Mono(data=2, sample_rate=44100, tags={})
 
     ```
     """
-    new_data = fn(m)
-    return Mono(new_data, m.sample_rate, m.tags)
+
+    def _map_data(m: Mono) -> Mono:
+        new_data = func(m)
+        return Mono(new_data, m.sample_rate, m.tags)
+
+    return _map_data
 
 
-def map_tags(m: Mono, fn: Callable[[Mono], dict]) -> Mono:
+def map_tags(func: Callable[[Mono], dict]) -> Callable[[Mono], Mono]:
     """Update the metadata field of `mono` using `fn`.
 
     ```python
     >>> x = mono([1, 2, 3], 44100, {})
-    >>> x = map_tags(x, lambda m: {"n_samples": len(m.data)})
+    >>> x = map_tags(lambda m: {"n_samples": len(m.data)})(x)
     >>> x.tags
     {'n_samples': 3}
 
     ```
     """
-    new_meta = fn(m)
-    if not isinstance(new_meta, dict):
-        raise TypeError(
-            f"Function passed to `update` must return a dictionary, got {type(new_meta)}."  # noqa: E501
-        )
-    return Mono(m.data, m.sample_rate, m.tags | new_meta)
+
+    def _map_tags(m: Mono) -> Mono:
+        new_meta = func(m)
+        if not isinstance(new_meta, dict):
+            raise TypeError(
+                f"Function passed to `update` must return a dictionary, got {type(new_meta)}."  # noqa: E501
+            )
+        return Mono(m.data, m.sample_rate, m.tags | new_meta)
+
+    return _map_tags
 
 
-def over_tags(m: Mono, fn: Callable[[dict], dict]) -> Mono:
+def over_tags(func: Callable[[dict], dict]) -> Callable[[Mono], Mono]:
     """Update the metadata field of `mono` using `fn`.
 
     ```python
     >>> x = mono([1, 2, 3], 44100, {"idx": 3})
-    >>> x = over_tags(x, lambda d: {"idx": d["idx"] + 1})
+    >>> x = over_tags(lambda d: {"idx": d["idx"] + 1})(x)
     >>> x
     Mono(data=[1, 2, 3], sample_rate=44100, tags={'idx': 4})
 
     ```
     """
-    new_meta = fn(m.tags)
-    if not isinstance(new_meta, dict):
-        raise TypeError(
-            f"Function passed to `update` must return a dictionary, got {type(new_meta)}."  # noqa: E501
-        )
-    return Mono(m.data, m.sample_rate, m.tags | new_meta)
+
+    def _over_tags(m: Mono) -> Mono:
+        new_meta = func(m.tags)
+        if not isinstance(new_meta, dict):
+            raise TypeError(
+                f"Function passed to `update` must return a dictionary, got {type(new_meta)}."  # noqa: E501
+            )
+        return Mono(m.data, m.sample_rate, m.tags | new_meta)
+
+    return _over_tags
 
 
 def add_tags(m: Mono, key: str, value: Any) -> Mono:
@@ -353,12 +379,12 @@ def add_tags(m: Mono, key: str, value: Any) -> Mono:
     return Mono(m.data, m.sample_rate, m.tags | {key: value})
 
 
-def collection_map(
+def cmap(
     func: Callable[Concatenate[Mono, P], R],
 ) -> Callable[Concatenate[MonoCollection, P], MonoCollection]:
     """Lift a mono transformation to operate over mono collections"""
 
-    def apply_to_collection(
+    def _collection_map(
         collection: MonoCollection, *args: P.args, **kwargs: P.kwargs
     ) -> MonoCollection:
         return collect(
@@ -369,5 +395,29 @@ def collection_map(
             tags=collection.tags,
         )
 
-    return apply_to_collection
+    return _collection_map
 
+
+# collection only
+def filter_collection(
+    c: MonoCollection, predicate: Callable[[Mono], bool]
+) -> MonoCollection:
+    """Filter a mono collection by a predicate"""
+    return collect(*[x for x in c.valid_entries if predicate(x)], tags=c.tags)
+
+
+def get_tags(c: MonoCollection, key: str, fill_with=None) -> list:
+    return [x.tags.get(key, fill_with) for x in c.valid_entries]
+
+
+def group_by_tag(c: MonoCollection, key: str) -> dict[str, MonoCollection]:
+    all_tags = get_tags(c, key)
+    unique_tags = list(set(all_tags))
+    return {
+        tag: filter_collection(c, lambda m: m.tags.get(key) == tag)
+        for tag in unique_tags
+    }
+
+
+def compact(c: MonoCollection) -> MonoCollection:
+    return collect(*c.valid_entries, tags=c.tags)
