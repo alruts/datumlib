@@ -1,22 +1,19 @@
 from rich.console import Console
 from rich.tree import Tree
 
-from monolib.containers import Mono, MonoCollection
+from monolib.containers import Datum, DatumCollection
 
 console = Console()
 
 
-def display_mono(m: Mono):
+def display_mono(m: Datum):
     """
-    Print a tree-style visualization of a Mono object with a soft aesthetic color scheme.
+    Print a tree-style visualization of a Datum object with a soft aesthetic color scheme.
     """
-    tree = Tree("[#c792ea]Mono[/#c792ea]", guide_style="#9da5b4")
+    tree = Tree("[#c792ea]Datum[/#c792ea]", guide_style="#9da5b4")
 
     # Data field
     tree.add(f"[#89ddff]data[/#89ddff]: [#ffcb6b]{m.data.__repr__()}[/#ffcb6b]")
-
-    # Sample rate
-    tree.add(f"[#89ddff]sample_rate[/#89ddff]: [#f78c6c]{m.sample_rate}[/#f78c6c]")
 
     # Tags
     tags_tree = tree.add("[#89ddff]tags[/#89ddff]")
@@ -44,9 +41,9 @@ from rich.tree import Tree
 console = Console()
 
 
-def display_collection(mc: "MonoCollection"):
+def display_collection(mc: "DatumCollection"):
     """
-    Print a MonoCollection object with collection tags as a list
+    Print a DatumCollection object with collection tags as a list
     and entries as a tree, wrapped in a rounded panel.
     """
 
@@ -70,11 +67,8 @@ def display_collection(mc: "MonoCollection"):
                 entries_tree.add(f"[#7f848e]Entry {i}: None[/#7f848e]")
                 continue
 
-            mono_tree = entries_tree.add(f"[bold #c792ea]Mono {i}[/bold #c792ea]")
+            mono_tree = entries_tree.add(f"[bold #c792ea]Datum {i}[/bold #c792ea]")
             mono_tree.add(f"[#89ddff]data[/#89ddff]: [#ffcb6b]{entry.data!r}[/#ffcb6b]")
-            mono_tree.add(
-                f"[#89ddff]sample_rate[/#89ddff]: [#f78c6c]{entry.sample_rate}[/#f78c6c]"
-            )
 
             mono_tags_tree = mono_tree.add("[#89ddff]tags[/#89ddff]")
             if entry.tags:
@@ -95,7 +89,7 @@ def display_collection(mc: "MonoCollection"):
 
     panel = Panel(
         panel_content,
-        title="[bold cyan]MonoCollection[/bold cyan]",
+        title="[bold cyan]DatumCollection[/bold cyan]",
         border_style="bright_blue",
     )
     console.print(panel)

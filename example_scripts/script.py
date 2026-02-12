@@ -3,22 +3,21 @@ import jax.numpy as jnp
 
 from monolib._disp import display_collection, display_mono
 from monolib.containers import (
-    Mono,
+    Datum,
     add_tags,
     collect,
     cmap,
     merge,
-    mono,
+    datum,
     over_data,
     over_tags,
     partition,
 )
 
-x1 = mono(jnp.arange(3), 48000, {"do_amplification": True})
-x2 = mono(jnp.arange(3), 48000, {"do_amplification": False})
-x3 = mono(jnp.arange(3), 48000, {"do_amplification": True})
+x1 = datum(jnp.arange(3), {"do_amplification": True})
+x2 = datum(jnp.arange(3), {"do_amplification": False})
+x3 = datum(jnp.arange(3), {"do_amplification": True})
 
-display_mono(x1)
 # %%
 
 c = collect(x1, x2, x3, tags={"date": "2026-02-08 16:25", "title": "Untitled"})
@@ -26,12 +25,12 @@ display_collection(c)
 
 
 # %%
-def resample(m: Mono) -> Mono:
-    return mono(m.data, 8000, m.tags)
+def resample(m: Datum) -> Datum:
+    return datum(m.data, 8000, m.tags)
 
 
-def take_sin(m: Mono) -> Mono:
-    return mono(m.xp.sin(m.data), 8000, m.tags)
+def take_sin(m: Datum) -> Datum:
+    return datum(m.xp.sin(m.data), 8000, m.tags)
 
 
 pipeline = {

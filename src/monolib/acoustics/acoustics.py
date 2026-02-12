@@ -4,15 +4,15 @@ import numpy as np
 import scipy.signal as signal
 from numpy.polynomial.polynomial import Polynomial
 
-from monolib.array_ops import normalize, power_to_db
-from monolib.comp import pipe
+from monolib.dsp.array_ops import normalize, power_to_db
 from monolib.containers import (
-    Mono,
-    MonoCollection,
+    Datum,
+    DatumCollection,
     collect,
+    over_data,
 )
 
-from monolib.helpers import time
+from monolib.dsp.helpers import time
 
 
 def _find_x_for_y(p_std: Polynomial, y_target: float) -> float:
@@ -24,7 +24,7 @@ def _find_x_for_y(p_std: Polynomial, y_target: float) -> float:
     return x_target
 
 
-def reverb_time(edcs: MonoCollection, decay_range=30, decay_target=60):
+def reverb_time(edcs: DatumCollection, decay_range=30, decay_target=60):
     """Assume MonoCollection of edc curves"""
     # Fit a line between -5 and -(decay_target + 5), and evaluate at -decay_target
     interval = (-5, -decay_range - 5)
@@ -62,7 +62,7 @@ def fit_rt_line(
 
 def make_octave_filter_bank(
     center_frequencies: list[float], octave_fraction: int
-) -> Callable[[Mono], MonoCollection]:
+) -> Callable[[Datum], DatumCollection]:
     """
     Creates a filter bank composed of bandpass filters spaced by a given octave
     fraction.
@@ -74,7 +74,7 @@ def make_octave_filter_bank(
 
     """
 
-    def _bank(x: Mono):
+    def _bank(x: Datum):
         filter_bank = []
 
         for cf in center_frequencies:
@@ -83,13 +83,13 @@ def make_octave_filter_bank(
             high = cf * band_ratio
 
             sos = signal.butter(
-                4, [low, high], btype="band", fs=x.sample_rate, output="sos"
+                4, [low, high], btype="band", fs=x.tags.get("sample_rate"), output="sos"
             )
 
             # Use sos as default value to avoid late binding issue
             filter_bank.append(lambda x, sos=sos: signal.sosfiltfilt(sos, x.data))
 
-        xs = [x.map_data(f) for f in filter_bank]
+        xs = [over_data(filt)(x) for filt in filter_bank]
 
         return collect(*xs)
 
@@ -113,12 +113,12 @@ def edc(x: np.ndarray):
     edc = np.cumsum(energy[::-1])[::-1]
 
     # Normalize and convert to dB
-    edc_db = pipe(normalize, power_to_db)(edc)
+    edc_db = power_to_db(normalize(edc))
 
     return edc_db
 
 
-def early_to_late_index(x: Mono, transition_time: float):
+def early_to_late_index(x: Datum, transition_time: float):
     """c80 for 80e-3"""
     t = time(x)
     transition_idx = np.searchsorted(t, transition_time)
@@ -137,7 +137,7 @@ def early_to_late_index(x: Mono, transition_time: float):
     return float(ratio_db)
 
 
-def early_to_total_index(x: Mono, transition_time: float):
+def early_to_total_index(x: Datum, transition_time: float):
     """d50 for transition_time 50e-3"""
     t = time(x)
     transition_idx = np.searchsorted(t, transition_time)
