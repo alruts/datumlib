@@ -2,7 +2,7 @@ from typing import Callable, Generic, TypeVar
 
 from tqdm import tqdm
 
-from monolib.containers import Datum, DatumCollection
+from datumlib import Datum, DatumCollection
 
 T = TypeVar("T", Datum, DatumCollection)
 
@@ -39,4 +39,5 @@ class PipelineDict(Generic[T]):
         return (x, scoped_results) if has_scope else x
 
 
-## todo: add something that takes in some params and returns a collection with different params (fx filterbank)
+## todo: add something that takes in some params and returns a collection with
+# different params (fx filterbank)

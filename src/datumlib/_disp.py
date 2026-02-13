@@ -3,24 +3,24 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
-from monolib.containers import Datum, DatumCollection
+from datumlib import Datum, DatumCollection
 
 console = Console()
 
 
-def display_mono(m: Datum):
+def display_datum(datum: Datum):
     """
     Print a tree-style visualization of a Datum object with a soft aesthetic color scheme.
     """
     tree = Tree("[#c792ea]Datum[/#c792ea]", guide_style="#9da5b4")
 
     # Data field
-    tree.add(f"[#89ddff]data[/#89ddff]: [#ffcb6b]{m.data.__repr__()}[/#ffcb6b]")
+    tree.add(f"[#89ddff]data[/#89ddff]: [#ffcb6b]{datum.data.__repr__()}[/#ffcb6b]")
 
     # Tags
     tags_tree = tree.add("[#89ddff]tags[/#89ddff]")
-    if m.tags:
-        for key, value in m.tags.items():
+    if datum.tags:
+        for key, value in datum.tags.items():
             tags_tree.add(f"[#f07178]{key}[/#f07178]: [#ffcb6b]{value}[/#ffcb6b]")
     else:
         tags_tree.add("[#7f848e]No tags[/#7f848e]")
@@ -28,16 +28,16 @@ def display_mono(m: Datum):
     console.print(tree)
 
 
-def display_collection(mc: "DatumCollection"):
+def display_collection(collection: DatumCollection):
     """
     Print a DatumCollection object with collection tags as a list
     and entries as a tree, wrapped in a rounded panel.
     """
 
     # Collection tags as a table/list
-    if mc.tags:
+    if collection.tags:
         tags_table = Table(show_header=False, box=None, pad_edge=False)
-        for key, value in mc.tags.items():
+        for key, value in collection.tags.items():
             tags_table.add_row(
                 f"[#f07178]{key}[/#f07178]", f"[#ffcb6b]{value}[/#ffcb6b]"
             )
@@ -46,25 +46,27 @@ def display_collection(mc: "DatumCollection"):
 
     # Entries as a tree
     entries_tree = Tree(
-        f"[#89ddff]entries[/#89ddff] ([#ffcb6b]{len(mc.entries)}[/#ffcb6b])"
+        f"[#89ddff]entries[/#89ddff] ([#ffcb6b]{len(collection.entries)}[/#ffcb6b])"
     )
-    if mc.entries:
-        for i, entry in enumerate(mc.entries):
+    if collection.entries:
+        for i, entry in enumerate(collection.entries):
             if entry is None:
                 entries_tree.add(f"[#7f848e]Entry {i}: None[/#7f848e]")
                 continue
 
-            mono_tree = entries_tree.add(f"[bold #c792ea]Datum {i}[/bold #c792ea]")
-            mono_tree.add(f"[#89ddff]data[/#89ddff]: [#ffcb6b]{entry.data!r}[/#ffcb6b]")
+            datum_tree = entries_tree.add(f"[bold #c792ea]Datum {i}[/bold #c792ea]")
+            datum_tree.add(
+                f"[#89ddff]data[/#89ddff]: [#ffcb6b]{entry.data!r}[/#ffcb6b]"
+            )
 
-            mono_tags_tree = mono_tree.add("[#89ddff]tags[/#89ddff]")
+            datum_tags_tree = datum_tree.add("[#89ddff]tags[/#89ddff]")
             if entry.tags:
                 for key, value in entry.tags.items():
-                    mono_tags_tree.add(
+                    datum_tags_tree.add(
                         f"[#f07178]{key}[/#f07178]: [#ffcb6b]{value}[/#ffcb6b]"
                     )
             else:
-                mono_tags_tree.add("[#7f848e]No tags[/#7f848e]")
+                datum_tags_tree.add("[#7f848e]No tags[/#7f848e]")
     else:
         entries_tree.add("[#7f848e]No entries[/#7f848e]")
 

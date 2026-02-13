@@ -1,38 +1,38 @@
-# All of Monolib
+# All of datumlib
 
 ## Container data types
 
-The whole library is based on the `Mono` data type, which is simply a `NamedTuple` with three fields
+The whole library is based on the `Datum` data type, which is simply a `NamedTuple` with three fields
 
 - `data`: this field is reserved for a 1D array representing the values of a signal.
 - `sample_rate`: the sample rate of said signal.
 - `tags`: any relevant meta data that you wish to attach to said signal.
 
 ```{python}
-from monolib.containers import mono
+from datumlib.containers import datum
 from numpy import array
 
-x = mono(array([1, 2, 3]), 8_000, {"type": "B"})
+x = datum(array([1, 2, 3]), {"type": "B"})
 x
 ```
 
-Since `Mono` is a named tuple, we can deconstruct its components by either unpacking,
+Since `Datum` is a named tuple, we can deconstruct its components by either unpacking,
 ```{python}
-data, sample_rate, tags = x
-print(data, sample_rate, tags)
+data, tags = x
+print(data, tags)
 ```
 or by using its named attributes,
 ```{python}
-print(x.data, x.sample_rate, x.tags)
+print(x.data, x.tags)
 ```
-`Mono` containers can be collected as `MonoCollection` types, which are nothing but a `NamedTuple` which includes a tuple of `Mono` containers along with optional `tags` for recording collection-wide meta data.
+`Datum` containers can be collected as `DatumCollection` types, which are nothing but a `NamedTuple` which includes a tuple of `Datum` containers along with optional `tags` for recording collection-wide meta data.
 
 ```{python}l
-from monolib.containers import collect
+from datumlib.containers import collect
 
-x1 = mono(array([1, 2, 3]), 8_000, {"type": "A"})
-x2 = mono(array([4, 5, 6]), 8_000, {"type": "B"})
-x3 = mono(array([7, 8, 9]), 8_000, {"type": "C"})
+x1 = datum(array([1, 2, 3]), {"type": "A"})
+x2 = datum(array([4, 5, 6]), {"type": "B"})
+x3 = datum(array([7, 8, 9]), {"type": "C"})
 
 collection = collect(x1, x2, x3, tags={"relevant": "info"})
 collection
