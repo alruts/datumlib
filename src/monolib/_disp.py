@@ -1,4 +1,6 @@
 from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 from rich.tree import Tree
 
 from monolib.containers import Datum, DatumCollection
@@ -24,21 +26,6 @@ def display_mono(m: Datum):
         tags_tree.add("[#7f848e]No tags[/#7f848e]")
 
     console.print(tree)
-
-
-from rich.console import Console
-from rich.panel import Panel
-from rich.tree import Tree
-
-console = Console()
-
-
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich.tree import Tree
-
-console = Console()
 
 
 def display_collection(mc: "DatumCollection"):
