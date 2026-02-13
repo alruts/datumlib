@@ -1,14 +1,13 @@
 [project]
-name = "monolib"
+name = "datumlib"
 version = "0.1.0"
-description = "Add your description here"
+description = "DatumLib is a lightweight Python library for managing data with metadata. It provides functional tools to map, filter, partition, merge, and tag your data. Immutable, easy-to-use, and ideal for experiments, pipelines, or any workflow that requires structured data with rich metadata."
 readme = "README.md"
 authors = [
     { name = "Sturla Njardarson", email = "sturlanjardarson@gmail.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "jax>=0.9.0",
     "matplotlib>=3.10.8",
     "notebook>=7.5.3",
     "numpy>=2.4.1",
