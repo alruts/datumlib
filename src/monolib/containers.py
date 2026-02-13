@@ -21,7 +21,7 @@ class Datum(NamedTuple):
     - tags (dict): Meta data in the form of a dictionary. Default is an empty
     dictionary.
 
-    ```
+    ```python
     >>> x = Datum(1.0, {"some_number": 42})
     >>> x
     Datum(data=1.0, tags={'some_number': 42})
@@ -45,9 +45,8 @@ class Datum(NamedTuple):
         """Return the array namespace for the underlying data."""
         if hasattr(self.data, "__array_namespace__"):
             return self.data.__array_namespace__()
-        import numpy as np
 
-        return np
+        return None
 
 
 class DatumCollection(NamedTuple):
@@ -404,6 +403,7 @@ def filter_collection(
 
 
 def get_tags(c: DatumCollection, key: str, fill_with=None) -> list:
+    """return all tags in a list"""
     return [x.tags.get(key, fill_with) for x in c.valid_entries]
 
 
