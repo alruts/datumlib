@@ -2,13 +2,17 @@ from logging import warning
 from typing import (
     Any,
     Callable,
+    Generic,
     NamedTuple,
     Optional,
+    TypeVar,
 )
 
+T = TypeVar("T")
 
-class Datum(NamedTuple):
-    """Data container for a 1D signal attached with relevant meta data. A `Datum`
+
+class Datum(NamedTuple, Generic[T]):
+    """Data container for data attached with relevant meta data. A `Datum`
     object is a NamedTuple which contains the following fields:
 
     - data (Any): The data to be stored in the container.
@@ -31,16 +35,8 @@ class Datum(NamedTuple):
 
     """
 
-    data: Any
-    tags: dict = {}
-
-    @property
-    def xp(self):
-        """Return the array namespace for the underlying data."""
-        if hasattr(self.data, "__array_namespace__"):
-            return self.data.__array_namespace__()
-
-        return None
+    data: T
+    tags: dict[str, object] = {}
 
 
 class DatumCollection(NamedTuple):
@@ -68,7 +64,7 @@ class DatumCollection(NamedTuple):
     """
 
     entries: tuple[Optional[Datum], ...]
-    tags: dict = {}
+    tags: dict[str, object] = {}
 
     @property
     def valid_entries(self) -> list[Datum]:
