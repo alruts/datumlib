@@ -1,14 +1,12 @@
 from typing import (
     Callable,
+    Optional,
     TypeVar,
 )
 
-from typing_extensions import Concatenate, ParamSpec
-
 from datumlib import Datum, DatumCollection, collect
 
-P = ParamSpec("P")
-R = TypeVar("R", bound="Datum")
+T = TypeVar("T")
 
 
 def filter_collection(
@@ -18,16 +16,18 @@ def filter_collection(
     return collect(*[x for x in c.valid_entries if predicate(x)], tags=c.tags)
 
 
-def get_tags(c: DatumCollection, key: str, fill_with=None) -> list:
+def get_tags(
+    c: DatumCollection, key: str, fill_with: object | None = None
+) -> list[object]:
     """return all tags in a list"""
     return [x.tags.get(key, fill_with) for x in c.valid_entries]
 
 
 def group_by_tag(c: DatumCollection, key: str) -> dict[str, DatumCollection]:
     all_tags = get_tags(c, key)
-    unique_tags = list(set(all_tags))
+    unique_tags: list[str] = [t for t in all_tags if isinstance(t, str)]
     return {
-        tag: filter_collection(c, lambda m: m.tags.get(key) == tag)
+        tag: filter_collection(c, lambda m, k=key, t=tag: m.tags.get(k) == t)
         for tag in unique_tags
     }
 
@@ -37,24 +37,20 @@ def compact(c: DatumCollection) -> DatumCollection:
 
 
 def cmap(
-    func: Callable[Concatenate["Datum", P], R], pass_tags: bool = False
-) -> Callable[Concatenate["DatumCollection", P], "DatumCollection"]:
-    """Lift a datum transformation to operate over datum collections.
-
-    If `pass_tags` is True, each datum is passed `tags=collection.tags` as a keyword argument.
-    """
+    func: Callable[[Datum], Datum],
+) -> Callable[[DatumCollection], DatumCollection]:
+    """Lift a datum transformation to operate over datum collections."""
 
     def _collection_map(
-        collection: "DatumCollection", *args: P.args, **kwargs: P.kwargs
-    ) -> "DatumCollection":
-        mapped_entries = []
+        collection: DatumCollection, *args: object, **kwargs: object
+    ) -> DatumCollection:
+        mapped_entries: list[Optional[Datum]] = []
         for x in collection.entries:
             if x is None:
                 mapped_entries.append(None)
                 continue
 
-            call_kwargs = dict(kwargs) | collection.tags
-            mapped_entries.append(func(x, *args, **call_kwargs))
+            mapped_entries.append(func(x, *args, **kwargs))
 
         return collect(*mapped_entries, tags=collection.tags)
 

@@ -8,16 +8,14 @@ from datumlib import Datum, DatumCollection
 console = Console()
 
 
-def display_datum(datum: Datum):
+def display_datum(datum: Datum) -> None:
     """
     Print a tree-style visualization of a Datum object with a soft aesthetic color scheme.
     """
     tree = Tree("[#c792ea]Datum[/#c792ea]", guide_style="#9da5b4")
 
-    # Data field
-    tree.add(f"[#89ddff]data[/#89ddff]: [#ffcb6b]{datum.data.__repr__()}[/#ffcb6b]")
+    tree.add(f"[#89ddff]data[/#89ddff]: [#ffcb6b]{datum.data!r}[/#ffcb6b]")
 
-    # Tags
     tags_tree = tree.add("[#89ddff]tags[/#89ddff]")
     if datum.tags:
         for key, value in datum.tags.items():
@@ -28,13 +26,12 @@ def display_datum(datum: Datum):
     console.print(tree)
 
 
-def display_collection(collection: DatumCollection):
+def display_collection(collection: DatumCollection) -> None:
     """
     Print a DatumCollection object with collection tags as a list
     and entries as a tree, wrapped in a rounded panel.
     """
 
-    # Collection tags as a table/list
     if collection.tags:
         tags_table = Table(show_header=False, box=None, pad_edge=False)
         for key, value in collection.tags.items():
@@ -44,7 +41,6 @@ def display_collection(collection: DatumCollection):
     else:
         tags_table = "[#7f848e]No collection tags[/#7f848e]"
 
-    # Entries as a tree
     entries_tree = Tree(
         f"[#89ddff]entries[/#89ddff] ([#ffcb6b]{len(collection.entries)}[/#ffcb6b])"
     )
@@ -70,7 +66,6 @@ def display_collection(collection: DatumCollection):
     else:
         entries_tree.add("[#7f848e]No entries[/#7f848e]")
 
-    # Combine tags and tree into a single panel
     panel_content = Table.grid(padding=(0, 1))
     panel_content.add_row("[bold green]Collection Tags[/bold green]")
     panel_content.add_row(tags_table)

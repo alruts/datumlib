@@ -1,4 +1,4 @@
-from typing import Callable, Generic, TypeVar
+from typing import Callable, Generic, Iterable, TypeVar
 
 from tqdm import tqdm
 
@@ -20,8 +20,7 @@ class PipelineDict(Generic[T]):
     ) -> T | tuple[T, dict[str, T]]:
         scoped_results: dict[str, T] = {}
 
-        # placeholder
-        iter = (
+        iter: Iterable[tuple[str, Callable[[T], T]]] = (
             tqdm(
                 self.steps.items(),
                 desc=f"Processing {x.__class__.__name__}",

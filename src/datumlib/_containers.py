@@ -1,8 +1,10 @@
 from logging import warning
+from types import MappingProxyType
 from typing import (
     Any,
     Callable,
     Generic,
+    Mapping,
     NamedTuple,
     Optional,
     TypeVar,
@@ -36,7 +38,7 @@ class Datum(NamedTuple, Generic[T]):
     """
 
     data: T
-    tags: dict[str, object] = {}
+    tags: Mapping[str, object]
 
 
 class DatumCollection(NamedTuple):
@@ -64,12 +66,12 @@ class DatumCollection(NamedTuple):
     """
 
     entries: tuple[Optional[Datum], ...]
-    tags: dict[str, object] = {}
+    tags: Mapping[str, object]
 
     @property
-    def valid_entries(self) -> list[Datum]:
-        """Return a list of non-None Datum entries."""
-        return [x for x in self.entries if x is not None]
+    def valid_entries(self) -> tuple[Datum, ...]:
+        """Return a tuple of non-None Datum entries."""
+        return tuple(x for x in self.entries if x is not None)
 
     def __repr__(self) -> str:
         entry_lines = []
@@ -90,7 +92,7 @@ Container = Datum | DatumCollection
 
 def datum(
     data: Any,
-    tags: dict = {},
+    tags: Mapping[str, object] | None = None,
 ) -> Datum:
     """Create a datum signal container
 
@@ -118,10 +120,12 @@ def datum(
     - tags (`dict`): The meta data dictionary.
 
     """
-    return Datum(data, tags)
+    return Datum(data, MappingProxyType(tags) if tags else {})
 
 
-def collect(*datums: Optional[Datum], tags: dict = {}) -> DatumCollection:
+def collect(
+    *datums: Optional[Datum], tags: Mapping[str, object] | None = None
+) -> DatumCollection:
     """Collect multiple `Datum` objects into a `DatumCollection` with optional
     meta data.
 
@@ -149,7 +153,7 @@ def collect(*datums: Optional[Datum], tags: dict = {}) -> DatumCollection:
     - tags (`dict`): The meta data dictionary.
     """
 
-    return DatumCollection(datums, tags)
+    return DatumCollection(datums, MappingProxyType(tags) if tags else {})
 
 
 def partition(

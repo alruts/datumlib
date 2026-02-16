@@ -1,9 +1,7 @@
-from typing import (
-    Any,
-    Callable,
-)
+from types import MappingProxyType
+from typing import Any, Callable, Mapping
 
-from datumlib import Datum
+from datumlib import Datum, datum
 
 
 def over_data(func: Callable[[Any], Any]) -> Callable[[Datum], Datum]:
@@ -20,7 +18,7 @@ def over_data(func: Callable[[Any], Any]) -> Callable[[Datum], Datum]:
 
     def _over_data(d: Datum) -> Datum:
         new_data = func(d.data)
-        return Datum(new_data, d.tags)
+        return datum(new_data, MappingProxyType(d.tags))
 
     return _over_data
 
@@ -39,12 +37,12 @@ def map_data(func: Callable[[Datum], Any]) -> Callable[[Datum], Datum]:
 
     def _map_data(d: Datum) -> Datum:
         new_data = func(d)
-        return Datum(new_data, d.tags)
+        return datum(new_data, d.tags)
 
     return _map_data
 
 
-def map_tags(func: Callable[[Datum], dict]) -> Callable[[Datum], Datum]:
+def map_tags(func: Callable[[Datum], Mapping[str, object]]) -> Callable[[Datum], Datum]:
     """Update the metadata field of `datum` using `fn`.
 
     ```python
@@ -58,16 +56,18 @@ def map_tags(func: Callable[[Datum], dict]) -> Callable[[Datum], Datum]:
 
     def _map_tags(d: Datum) -> Datum:
         new_meta = func(d)
-        if not isinstance(new_meta, dict):
+        if not isinstance(new_meta, Mapping):
             raise TypeError(
-                f"Function passed to `update` must return a dictionary, got {type(new_meta)}."  # noqa: E501
+                f"Function passed to `update` must return a dictionary, got {type(new_meta)}."
             )
-        return Datum(d.data, d.tags | new_meta)
+        return datum(d.data, dict(d.tags) | dict(new_meta))
 
     return _map_tags
 
 
-def over_tags(func: Callable[[dict], dict]) -> Callable[[Datum], Datum]:
+def over_tags(
+    func: Callable[[Mapping[str, object]], Mapping[str, object]],
+) -> Callable[[Datum], Datum]:
     """Update the metadata field of `datum` using `fn`.
 
     ```python
@@ -81,16 +81,16 @@ def over_tags(func: Callable[[dict], dict]) -> Callable[[Datum], Datum]:
 
     def _over_tags(d: Datum) -> Datum:
         new_meta = func(d.tags)
-        if not isinstance(new_meta, dict):
+        if not isinstance(new_meta, Mapping):
             raise TypeError(
-                f"Function passed to `update` must return a dictionary, got {type(new_meta)}."  # noqa: E501
+                f"Function passed to `update` must return a mapping, got {type(new_meta)}."
             )
-        return Datum(d.data, d.tags | new_meta)
+        return datum(d.data, dict(d.tags) | dict(new_meta))
 
     return _over_tags
 
 
-def add_tags(d: Datum, key: str, value: Any) -> Datum:
+def add_tags(d: Datum, key: str, value: object) -> Datum:
     """Add tags to `datum`.
 
     ```python
@@ -101,4 +101,4 @@ def add_tags(d: Datum, key: str, value: Any) -> Datum:
 
     ```
     """
-    return Datum(d.data, d.tags | {key: value})
+    return Datum(d.data, {**dict(d.tags), key: value})
