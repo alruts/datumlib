@@ -11,7 +11,7 @@ def over_data(func: Callable[[Any], Any]) -> Callable[[Datum], Datum]:
     ```python
     >>> x = datum(1)
     >>> over_data(lambda x: x + 1)(x)
-    Datum(data=2, tags={})
+    Datum(data=2, tags=mappingproxy({}))
 
     ```
     """
@@ -30,7 +30,7 @@ def map_data(func: Callable[[Datum], Any]) -> Callable[[Datum], Datum]:
     ```python
     >>> x = datum(1)
     >>> map_data(lambda x: x.data + 1)(x)
-    Datum(data=2, tags={})
+    Datum(data=2, tags=mappingproxy({}))
 
     ```
     """
@@ -49,7 +49,7 @@ def map_tags(func: Callable[[Datum], Mapping[str, object]]) -> Callable[[Datum],
     >>> x = datum([1, 2, 3], {})
     >>> x = map_tags(lambda m: {"n_samples": len(m.data)})(x)
     >>> x.tags
-    {'n_samples': 3}
+    mappingproxy({'n_samples': 3})
 
     ```
     """
@@ -74,7 +74,7 @@ def over_tags(
     >>> x = datum([1, 2, 3], {"idx": 3})
     >>> x = over_tags(lambda d: {"idx": d["idx"] + 1})(x)
     >>> x
-    Datum(data=[1, 2, 3], tags={'idx': 4})
+    Datum(data=[1, 2, 3], tags=mappingproxy({'idx': 4}))
 
     ```
     """
@@ -97,8 +97,8 @@ def add_tags(d: Datum, key: str, value: object) -> Datum:
     >>> x: Datum = datum([1, 2, 3], {})
     >>> x = add_tags(x, key="label", value="a")
     >>> x
-    Datum(data=[1, 2, 3], tags={'label': 'a'})
+    Datum(data=[1, 2, 3], tags=mappingproxy({'label': 'a'}))
 
     ```
     """
-    return Datum(d.data, {**dict(d.tags), key: value})
+    return datum(d.data, {**dict(d.tags), key: value})

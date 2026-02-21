@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from logging import warning
 from types import MappingProxyType
 from typing import (
@@ -5,7 +6,6 @@ from typing import (
     Callable,
     Generic,
     Mapping,
-    NamedTuple,
     Optional,
     TypeVar,
 )
@@ -13,64 +13,57 @@ from typing import (
 T = TypeVar("T")
 
 
-class Datum(NamedTuple, Generic[T]):
-    """Data container for data attached with relevant meta data. A `Datum`
-    object is a NamedTuple which contains the following fields:
-
-    - data (Any): The data to be stored in the container.
-    - tags (dict): Meta data in the form of a dictionary. Default is an empty
-    dictionary.
-
-    ```python
-    >>> x = Datum(1.0, {"some_number": 42})
-    >>> x
-    Datum(data=1.0, tags={'some_number': 42})
-    >>> data, md = x
-    >>> data, md
-    (1.0, {'some_number': 42})
-    >>> x.data # access via dot notation
-    1.0
-    >>> x.tags.get("some_number")
-    42
-
-    ```
-
-    """
+@dataclass(frozen=True)
+class Datum(Generic[T]):
+    """Immutable data container with metadata."""
 
     data: T
-    tags: Mapping[str, object]
+    tags: Mapping[str, object] = field(default_factory=lambda: MappingProxyType({}))
+
+    def __post_init__(self):
+        # Ensure tags are immutable
+        if not isinstance(self.tags, MappingProxyType):
+            object.__setattr__(self, "tags", MappingProxyType(dict(self.tags)))
+
+    def over_data(self, func: Callable):
+        from datumlib._datum_utils import over_data
+
+        return over_data(func)(self)
+
+    def over_tags(self, func: Callable):
+        from datumlib._datum_utils import over_tags
+
+        return over_tags(func)(self)
+
+    def map_data(self, func: Callable):
+        from datumlib._datum_utils import map_data
+
+        return map_data(func)(self)
+
+    def map_tags(self, func: Callable):
+        from datumlib._datum_utils import map_tags
+
+        return map_tags(func)(self)
+
+    def add_tags(self, key: str, value: Any):
+        from datumlib._datum_utils import add_tags
+
+        return add_tags(self, key, value)
 
 
-class DatumCollection(NamedTuple):
-    """Data container to batch together multiple Datum objects.
-
-    A `DatumCollection` object is a NamedTuple which contains the following fields:
-    - entries (`Tuple[Datum]`): A tuple of `Datum` objects.
-    - tags (`dict`): Meta data in the form of a dictionary. Default is an empty
-    dictionary.
-
-    Datum collections can be constructed from multiple `Datum` objects using the
-    `collect` function.
-
-    >>> x = datum(1)
-    >>> y = datum(1)
-    >>> collect(x, y, tags={"date": "1999-12-31"})
-    DatumCollection(
-      entries=(
-        Datum(data=1, tags={}),
-        Datum(data=1, tags={}),
-      ),
-      tags={'date': '1999-12-31'}
-    )
-
-    """
+@dataclass(frozen=True)
+class DatumCollection:
+    """Immutable collection of Datum objects."""
 
     entries: tuple[Optional[Datum], ...]
-    tags: Mapping[str, object]
+    tags: Mapping[str, object] = field(default_factory=lambda: MappingProxyType({}))
+
+    def __post_init__(self):
+        if not isinstance(self.tags, MappingProxyType):
+            object.__setattr__(self, "tags", MappingProxyType(dict(self.tags)))
 
     @property
     def valid_entries(self) -> tuple[Datum, ...]:
-        """Return a tuple of non-None Datum entries."""
         return tuple(x for x in self.entries if x is not None)
 
     def __repr__(self) -> str:
@@ -85,182 +78,95 @@ class DatumCollection(NamedTuple):
             f")"
         )
 
+    def over_data(self, func: Callable):
+        from datumlib._datum_utils import over_data
 
-# either
-Container = Datum | DatumCollection
+        return cmap(over_data(func))(self)
+
+    def over_tags(self, func: Callable):
+        from datumlib._datum_utils import over_tags
+
+        return cmap(over_tags(func))(self)
+
+    def map_data(self, func: Callable):
+        from datumlib._datum_utils import map_data
+
+        return cmap(map_data(func))(self)
+
+    def map_tags(self, func: Callable):
+        from datumlib._datum_utils import map_tags
+
+        return cmap(map_tags(func))(self)
+
+
+def cmap(
+    func: Callable[[Datum], Datum], *, pass_tags: Optional[tuple[str]] = None
+) -> Callable[[DatumCollection], DatumCollection]:
+    """Lift a datum transformation to operate over datum collections."""
+
+    def _collection_map(
+        collection: DatumCollection, *args: object, **kwargs: object
+    ) -> DatumCollection:
+        mapped_entries: list[Optional[Datum]] = []
+        for x in collection.entries:
+            if x is None:
+                mapped_entries.append(None)
+                continue
+
+            kwds = {k: x.tags.get(k) for k in pass_tags} if pass_tags else {}
+            mapped_entries.append(func(x, *args, **(kwargs | kwds)))
+
+        return collect(*mapped_entries, tags=collection.tags)
+
+    return _collection_map
 
 
 def datum(
     data: Any,
     tags: Mapping[str, object] | None = None,
 ) -> Datum:
-    """Create a datum signal container
+    """Constructs a datum object.
 
     ```python
-    >>> x = datum([1], {"level": 42})
+    >>> x = datum(1, {"name": "bob"})
     >>> x
-    Datum(data=[1], tags={'level': 42})
-    >>> data, md = x # unpacking
-    >>> data, md
-    ([1], {'level': 42})
-    >>> x.data # access via dot notation
-    [1]
+    Datum(data=1, tags=mappingproxy({'name': 'bob'}))
+    >>> x.data
+    1
+    >>> x.tags
+    mappingproxy({'name': 'bob'})
 
     ```
 
-    ### Args:
-    - data (`Any`): The data to be stored in the container.
-    - tags (`dict`): Meta data in the form of a dictionary. Default is an empty
-    dictionary.
-
-    ### Returns:
-    A `NamedTuple` containing the data and meta data.
-    - data (`Any`): The data to be stored in the
-    container.
-    - tags (`dict`): The meta data dictionary.
-
     """
-    return Datum(data, MappingProxyType(tags) if tags else {})
+    return Datum(
+        data=data, tags=MappingProxyType(dict(tags)) if tags else MappingProxyType({})
+    )
 
 
 def collect(
     *datums: Optional[Datum], tags: Mapping[str, object] | None = None
 ) -> DatumCollection:
-    """Collect multiple `Datum` objects into a `DatumCollection` with optional
-    meta data.
+    """Collects multiple `Datum` objects into a `DatumCollection`.
 
     ```python
-    >>> x = datum([1])
-    >>> y = datum([1])
-    >>> collect(x, y, tags={"session": "0000-00-00"})
+    >>> x = datum(1, {"name": "bob"})
+    >>> y = datum(2, {"name": "alice"})
+    >>> z = datum(3, {"name": "john"})
+    >>> collection = collect(x, y, z)
+    >>> collection
     DatumCollection(
       entries=(
-        Datum(data=[1], tags={}),
-        Datum(data=[1], tags={}),
+        Datum(data=1, tags=mappingproxy({'name': 'bob'})),
+        Datum(data=2, tags=mappingproxy({'name': 'alice'})),
+        Datum(data=3, tags=mappingproxy({'name': 'john'})),
       ),
-      tags={'session': '0000-00-00'}
-    )
-
-    ```
-
-    ### Args:
-    - datums (`Datum`): One or more datum objects.
-    - tags (`dict`): Meta data in the form of a dictionary. Keyword only argument.
-
-    ### Returns:
-    A `NamedTuple` containing a tuple of `Datum` objects and the meta data.
-    - entries (`Tuple[Datum]`): A tuple of `Datum` objects.
-    - tags (`dict`): The meta data dictionary.
-    """
-
-    return DatumCollection(datums, MappingProxyType(tags) if tags else {})
-
-
-def partition(
-    collection: DatumCollection,
-    masking_func: Callable[[Datum], bool],
-) -> tuple[DatumCollection, DatumCollection]:
-    """Splits `collection` into two separate `DatumCollection` objects based on
-    a predicate function.
-
-    Each `Datum` in the original collection is tested with `masking_fn`. If the
-    function returns `True`, the `Datum` is placed in the first output
-    collection; otherwise, it is placed in the second. The position of each
-    `Datum` is preserved, and unmatched entries are replaced with `None`.
-
-    ```python
-    >>> x = datum([1], {"label": "a"})
-    >>> y = datum([1], {"label": "b"})
-    >>> xy = collect(x, y)
-    >>> filtered, rest = partition(xy, lambda x: x.tags.get("label") == "a")
-    >>> filtered
-    DatumCollection(
-      entries=(
-        Datum(data=[1], tags={'label': 'a'}),
-        None,
-      ),
-      tags={}
-    )
-    >>> rest
-    DatumCollection(
-      entries=(
-        None,
-        Datum(data=[1], tags={'label': 'b'}),
-      ),
-      tags={}
-    )
-
-    ```
-    ### Args:
-    - collection (`DatumCollection`): The it collection of `Datum` objects.
-    - masking_func (`Callable[[Datum], bool]`): A function that returns `True`
-      for elements to include in the first output collection, and `False` for
-      the second.
-
-    ### Returns:
-
-    A tuple of two `DatumCollection` object that preserve the structure of the
-    it collection, with unmatched entries replaced by `None`.
-    - The first contains elements where `masking_fn` returns `True`.
-    - The second contains elements where it returns `False`."""
-
-    filtered, rest = zip(
-        *(
-            (x, None) if x is None or masking_func(x) else (None, x)
-            for x in collection.entries
-        )
-    )
-    return DatumCollection(tuple(filtered), collection.tags), DatumCollection(
-        tuple(rest), collection.tags
-    )
-
-
-# helper for merge
-def _check_and_pick(xs: tuple[Datum, ...]):
-    hits = [x for x in xs if x is not None]
-    if len(hits) > 1:
-        raise ValueError("`DatumCollection` has overlapping (datum) entries.")
-    return hits[0] if hits else None
-
-
-def merge(*collections: DatumCollection) -> DatumCollection:
-    """Merges `collections` objects (typically from `partition`) into a single
-    DatumCollection.
-
-    This function assumes that each collection shares the same structure, and
-    that only one collection has a non-`None` entry at each position. This is
-    typically used to reverse the effect of `partition`, after modifying the
-    partitions separately.
-
-    ```python
-    >>> x = datum(1, {"label": "a"})
-    >>> y = datum(1, {"label": "b"})
-    >>> mc = collect(x, y)
-    >>> filtered, rest = partition(mc, lambda x: x.tags.get("label") == "a")
-    >>> merged = merge(
-    ...     cmap(over_data(lambda x: x + 1))(filtered),
-    ...     cmap(over_data(lambda x: x - 1))(rest)
-    ... )  # apply different processing to each section
-    >>> merged
-    DatumCollection(
-      entries=(
-        Datum(data=2, tags={'label': 'a'}),
-        Datum(data=0, tags={'label': 'b'}),
-      ),
-      tags={}
+      tags=mappingproxy({})
     )
 
     ```
     """
-    entries = zip(*(c.entries for c in collections))
-    merged = tuple(_check_and_pick(xs) for xs in entries)
-
-    # check if all tags are the same
-    hashable_dicts = {tuple(sorted(c.tags.items())) for c in collections}
-    if len(hashable_dicts) != 1:
-        warning(
-            "Tags for collections to be merged do not match!, using tags from the first collection."
-        )
-
-    tags = collections[0].tags  # !todo: this is sloppy
-    return DatumCollection(merged, tags=tags)
+    return DatumCollection(
+        entries=datums,
+        tags=MappingProxyType(dict(tags)) if tags else MappingProxyType({}),
+    )
