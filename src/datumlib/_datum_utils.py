@@ -1,7 +1,7 @@
+import dataclasses
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
 
-import dataclasses
 from datumlib import Datum, datum
 
 
@@ -13,6 +13,29 @@ def _get_class_and_fields(d: Datum):
         if f.name not in ("data", "tags")
     }
     return cls, fields
+
+
+def with_data(new_data: Any) -> Callable[[Datum], Datum]:
+    """Apply `fn` to the data field of the `Datum` container and return a transformed
+    container
+
+    ```python
+    >>> x = datum(1)
+    >>> with_data(2)(x)
+    Datum(data=2, tags=mappingproxy({}))
+
+    ```
+    """
+
+    def _with_data(d: Datum) -> Datum:
+        cls, fields = _get_class_and_fields(d)
+        return cls(
+            new_data,
+            **fields,
+            tags=d.tags,
+        )
+
+    return _with_data
 
 
 def over_data(func: Callable[[Any], Any]) -> Callable[[Datum], Datum]:
@@ -33,7 +56,7 @@ def over_data(func: Callable[[Any], Any]) -> Callable[[Datum], Datum]:
         return cls(
             new_data,
             **fields,
-            tags=MappingProxyType(d.tags),
+            tags=d.tags,
         )
 
     return _over_data
@@ -57,7 +80,7 @@ def map_data(func: Callable[[Datum], Any]) -> Callable[[Datum], Datum]:
         return cls(
             new_data,
             **fields,
-            tags=MappingProxyType(d.tags),
+            tags=d.tags,
         )
 
     return _map_data

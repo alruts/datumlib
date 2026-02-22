@@ -5,7 +5,7 @@ from typing import (
     TypeVar,
 )
 
-from datumlib import Datum, DatumCollection, collect, datum
+from datumlib import Datum, DatumCollection, collect
 
 T = TypeVar("T")
 
@@ -46,9 +46,9 @@ def partition(
     with `None`. For info about usefulness see `merge`.
 
     ```python
-    >>> x = datum(1, {"grade": "A"})
-    >>> y = datum(2, {"grade": "A"})
-    >>> z = datum(3, {"grade": "B"})
+    >>> x = Datum(1, tags={"grade": "A"})
+    >>> y = Datum(2, tags={"grade": "A"})
+    >>> z = Datum(3, tags={"grade": "B"})
     >>> collection = collect(x, y, z)
     >>> As, Bs = partition(collection, lambda x: x.tags.get("grade") == "A")
     >>> As
@@ -103,9 +103,9 @@ def merge(*collections: DatumCollection) -> DatumCollection:
     after modifying the partitions separately.
 
     ```python
-    >>> x = datum(1, {"grade": "A"})
-    >>> y = datum(1, {"grade": "A"})
-    >>> z = datum(1, {"grade": "B"})
+    >>> x = Datum(1, tags={"grade": "A"})
+    >>> y = Datum(1, tags={"grade": "A"})
+    >>> z = Datum(1, tags={"grade": "B"})
     >>> collection = collect(x, y, z, tags={"date": "1999-12-31"})
     >>> # Partition into 'A' and 'B' grades
     >>> As, Bs = partition(collection, lambda d: d.tags.get("grade") == "A")
@@ -143,3 +143,42 @@ def merge(*collections: DatumCollection) -> DatumCollection:
 
 def compact(c: DatumCollection) -> DatumCollection:
     return collect(*c.valid_entries, tags=c.tags)
+
+
+def sort_by(
+    c: DatumCollection,
+    key: Optional[str] = None,
+    reverse: bool = False,
+    key_func: Optional[Callable[[Datum], T]] = None,
+) -> DatumCollection:
+    """
+    Sort a DatumCollection.
+
+    - `key`: if provided, sorts by the Datum's tag with this key.
+    - `key_func`: optional custom function to extract a sort key from each Datum.
+                  If both `key` and `key_func` are provided, `key_func` takes precedence.
+    - `reverse`: if True, sorts in descending order.
+
+    ```python
+    >>> x = Datum(1, tags={"score": 10})
+    >>> y = Datum(2, tags={"score": 30})
+    >>> z = Datum(3, tags={"score": 20})
+    >>> collection = collect(x, y, z)
+    >>> sorted_collection = sort_by(collection, key="score")
+    >>> [d.data for d in sorted_collection.valid_entries]
+    [1, 3, 2]
+
+    ```
+    """
+    if key_func is None and key is None:
+        raise ValueError("Either `key` or `key_func` must be provided.")
+
+    def sorter(d: Datum):
+        if key_func is not None:
+            return key_func(d)
+        if d is None:
+            return float("-inf")  # Keep None entries at start
+        return d.tags.get(key, float("-inf"))  # Use -inf for missing keys
+
+    sorted_entries = sorted(c.entries, key=sorter, reverse=reverse)
+    return DatumCollection(sorted_entries, tags=c.tags)

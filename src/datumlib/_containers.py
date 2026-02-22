@@ -23,6 +23,11 @@ class Datum(Generic[T]):
         if not isinstance(self.tags, MappingProxyType):
             object.__setattr__(self, "tags", MappingProxyType(dict(self.tags)))
 
+    def with_data(self, func: Callable):
+        from datumlib._datum_utils import with_data
+
+        return with_data(func)(self)
+
     def over_data(self, func: Callable):
         from datumlib._datum_utils import over_data
 
@@ -75,6 +80,11 @@ class DatumCollection:
             f"  tags={repr(self.tags)}\n"
             f")"
         )
+
+    def with_data(self, new_data: Any):
+        from datumlib._datum_utils import with_data
+
+        return cmap(with_data(new_data))(self)
 
     def over_data(self, func: Callable):
         from datumlib._datum_utils import over_data
