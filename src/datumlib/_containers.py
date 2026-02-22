@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from logging import warning
 from types import MappingProxyType
 from typing import (
     Any,
@@ -18,10 +17,9 @@ class Datum(Generic[T]):
     """Immutable data container with metadata."""
 
     data: T
-    tags: Mapping[str, object] = field(default_factory=lambda: MappingProxyType({}))
+    tags: Mapping[str, object] = field(default_factory=dict, kw_only=True)
 
     def __post_init__(self):
-        # Ensure tags are immutable
         if not isinstance(self.tags, MappingProxyType):
             object.__setattr__(self, "tags", MappingProxyType(dict(self.tags)))
 

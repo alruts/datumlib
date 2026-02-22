@@ -1,4 +1,4 @@
-from datumlib._containers import Datum, DatumCollection, collect, datum
+from datumlib._containers import Datum, DatumCollection, collect, datum, cmap
 from datumlib._disp import display_collection, display_datum
 from datumlib._pipe import PipelineDict
 
@@ -15,4 +15,5 @@ __all__ = [
     "display_collection",
     "display_datum",
     "PipelineDict",
+    "cmap",
 ]

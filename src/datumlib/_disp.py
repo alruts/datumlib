@@ -2,6 +2,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
+from dataclasses import fields, is_dataclass
 
 from datumlib import Datum, DatumCollection
 
@@ -10,16 +11,27 @@ console = Console()
 
 def display_datum(datum: Datum) -> None:
     """
-    Print a tree-style visualization of a Datum object with a soft aesthetic color scheme.
+    Print a tree-style visualization of a Datum object, including subclass fields,
+    with a soft aesthetic color scheme.
     """
-    tree = Tree("[#c792ea]Datum[/#c792ea]", guide_style="#9da5b4")
+    tree = Tree(f"[#c792ea]{datum.__class__.__name__}[/#c792ea]", guide_style="#9da5b4")
 
+    # Display data
     tree.add(f"[#89ddff]data[/#89ddff]: [#ffcb6b]{datum.data!r}[/#ffcb6b]")
 
+    # Display subclass-specific fields (skip 'data' and 'tags')
+    if is_dataclass(datum):
+        for field_ in fields(datum):
+            if field_.name in ("data", "tags"):
+                continue
+            value = getattr(datum, field_.name)
+            tree.add(f"[#89ddff]{field_.name}[/#89ddff]: [#ffcb6b]{value!r}[/#ffcb6b]")
+
+    # Display tags
     tags_tree = tree.add("[#89ddff]tags[/#89ddff]")
-    if datum.tags:
+    if getattr(datum, "tags", None):
         for key, value in datum.tags.items():
-            tags_tree.add(f"[#f07178]{key}[/#f07178]: [#ffcb6b]{value}[/#ffcb6b]")
+            tags_tree.add(f"[#f07178]{key}[/#f07178]: [#ffcb6b]{value!r}[/#ffcb6b]")
     else:
         tags_tree.add("[#7f848e]No tags[/#7f848e]")
 

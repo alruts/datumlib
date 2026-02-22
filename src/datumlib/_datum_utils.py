@@ -1,7 +1,18 @@
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
 
+import dataclasses
 from datumlib import Datum, datum
+
+
+def _get_class_and_fields(d: Datum):
+    cls = type(d)
+    fields = {
+        f.name: getattr(d, f.name)
+        for f in dataclasses.fields(d)
+        if f.name not in ("data", "tags")
+    }
+    return cls, fields
 
 
 def over_data(func: Callable[[Any], Any]) -> Callable[[Datum], Datum]:
@@ -17,8 +28,13 @@ def over_data(func: Callable[[Any], Any]) -> Callable[[Datum], Datum]:
     """
 
     def _over_data(d: Datum) -> Datum:
+        cls, fields = _get_class_and_fields(d)
         new_data = func(d.data)
-        return datum(new_data, MappingProxyType(d.tags))
+        return cls(
+            new_data,
+            **fields,
+            tags=MappingProxyType(d.tags),
+        )
 
     return _over_data
 
@@ -36,8 +52,13 @@ def map_data(func: Callable[[Datum], Any]) -> Callable[[Datum], Datum]:
     """
 
     def _map_data(d: Datum) -> Datum:
+        cls, fields = _get_class_and_fields(d)
         new_data = func(d)
-        return datum(new_data, d.tags)
+        return cls(
+            new_data,
+            **fields,
+            tags=MappingProxyType(d.tags),
+        )
 
     return _map_data
 
@@ -55,12 +76,13 @@ def map_tags(func: Callable[[Datum], Mapping[str, object]]) -> Callable[[Datum],
     """
 
     def _map_tags(d: Datum) -> Datum:
+        cls, fields = _get_class_and_fields(d)
         new_meta = func(d)
         if not isinstance(new_meta, Mapping):
             raise TypeError(
                 f"Function passed to `update` must return a dictionary, got {type(new_meta)}."
             )
-        return datum(d.data, dict(d.tags) | dict(new_meta))
+        return cls(d.data, **fields, tags=dict(d.tags) | dict(new_meta))
 
     return _map_tags
 
@@ -80,12 +102,13 @@ def over_tags(
     """
 
     def _over_tags(d: Datum) -> Datum:
+        cls, fields = _get_class_and_fields(d)
         new_meta = func(d.tags)
         if not isinstance(new_meta, Mapping):
             raise TypeError(
                 f"Function passed to `update` must return a mapping, got {type(new_meta)}."
             )
-        return datum(d.data, dict(d.tags) | dict(new_meta))
+        return cls(d.data, **fields, tags=dict(d.tags) | dict(new_meta))
 
     return _over_tags
 
@@ -101,4 +124,6 @@ def add_tags(d: Datum, key: str, value: object) -> Datum:
 
     ```
     """
-    return datum(d.data, {**dict(d.tags), key: value})
+
+    cls, fields = _get_class_and_fields(d)
+    return cls(d.data, **fields, tags={**dict(d.tags), key: value})
