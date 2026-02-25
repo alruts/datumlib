@@ -1,8 +1,7 @@
 import dataclasses
-from types import MappingProxyType
 from typing import Any, Callable, Mapping
 
-from datumlib import Datum, datum
+from datumlib._containers import Datum
 
 
 def _get_class_and_fields(d: Datum):
@@ -20,7 +19,7 @@ def with_data(new_data: Any) -> Callable[[Datum], Datum]:
     container
 
     ```python
-    >>> x = datum(1)
+    >>> x = Datum(1)
     >>> with_data(2)(x)
     Datum(data=2, tags=mappingproxy({}))
 
@@ -43,7 +42,7 @@ def over_data(func: Callable[[Any], Any]) -> Callable[[Datum], Datum]:
     container
 
     ```python
-    >>> x = datum(1)
+    >>> x = Datum(1)
     >>> over_data(lambda x: x + 1)(x)
     Datum(data=2, tags=mappingproxy({}))
 
@@ -67,7 +66,7 @@ def map_data(func: Callable[[Datum], Any]) -> Callable[[Datum], Datum]:
     container
 
     ```python
-    >>> x = datum(1)
+    >>> x = Datum(1)
     >>> map_data(lambda x: x.data + 1)(x)
     Datum(data=2, tags=mappingproxy({}))
 
@@ -90,7 +89,7 @@ def map_tags(func: Callable[[Datum], Mapping[str, object]]) -> Callable[[Datum],
     """Update the metadata field of `datum` using `fn`.
 
     ```python
-    >>> x = datum([1, 2, 3], {})
+    >>> x = Datum([1, 2, 3], {})
     >>> x = map_tags(lambda m: {"n_samples": len(m.data)})(x)
     >>> x.tags
     mappingproxy({'n_samples': 3})
@@ -116,7 +115,7 @@ def over_tags(
     """Update the metadata field of `datum` using `fn`.
 
     ```python
-    >>> x = datum([1, 2, 3], {"idx": 3})
+    >>> x = Datum([1, 2, 3], {"idx": 3})
     >>> x = over_tags(lambda d: {"idx": d["idx"] + 1})(x)
     >>> x
     Datum(data=[1, 2, 3], tags=mappingproxy({'idx': 4}))
@@ -136,11 +135,11 @@ def over_tags(
     return _over_tags
 
 
-def add_tags(d: Datum, key: str, value: object) -> Datum:
+def add_tags(d: Datum, tags: Mapping) -> Datum:
     """Add tags to `datum`.
 
     ```python
-    >>> x: Datum = datum([1, 2, 3], {})
+    >>> x: Datum = Datum([1, 2, 3], {})
     >>> x = add_tags(x, key="label", value="a")
     >>> x
     Datum(data=[1, 2, 3], tags=mappingproxy({'label': 'a'}))
@@ -149,4 +148,4 @@ def add_tags(d: Datum, key: str, value: object) -> Datum:
     """
 
     cls, fields = _get_class_and_fields(d)
-    return cls(d.data, **fields, tags={**dict(d.tags), key: value})
+    return cls(d.data, **fields, tags={**dict(d.tags), **tags})

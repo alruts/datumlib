@@ -23,42 +23,42 @@ class Datum(Generic[T]):
         if not isinstance(self.tags, MappingProxyType):
             object.__setattr__(self, "tags", MappingProxyType(dict(self.tags)))
 
-    def with_data(self, func: Callable):
+    def with_data(self, new_data: T):
         from datumlib._datum_utils import with_data
 
-        return with_data(func)(self)
+        return with_data(new_data)(self)
 
-    def over_data(self, func: Callable):
+    def over_data(self, func: Callable[[T], T]):
         from datumlib._datum_utils import over_data
 
         return over_data(func)(self)
 
-    def over_tags(self, func: Callable):
+    def over_tags(self, func: Callable[[Mapping], Mapping]):
         from datumlib._datum_utils import over_tags
 
         return over_tags(func)(self)
 
-    def map_data(self, func: Callable):
+    def map_data(self, func: Callable[["Datum[T]"], T]):
         from datumlib._datum_utils import map_data
 
         return map_data(func)(self)
 
-    def map_tags(self, func: Callable):
+    def map_tags(self, func: Callable[["Datum[T]"], Mapping]):
         from datumlib._datum_utils import map_tags
 
         return map_tags(func)(self)
 
-    def add_tags(self, key: str, value: Any):
+    def add_tags(self, tags: Mapping):
         from datumlib._datum_utils import add_tags
 
-        return add_tags(self, key, value)
+        return add_tags(self, tags)
 
 
 @dataclass(frozen=True)
-class DatumCollection:
+class DatumCollection(Generic[T]):
     """Immutable collection of Datum objects."""
 
-    entries: tuple[Optional[Datum], ...]
+    entries: tuple[Optional[Datum[T]], ...]
     tags: Mapping[str, object] = field(default_factory=lambda: MappingProxyType({}))
 
     def __post_init__(self):
@@ -81,30 +81,39 @@ class DatumCollection:
             f")"
         )
 
-    def with_data(self, new_data: Any):
+    def with_data(self, new_data: T):
         from datumlib._datum_utils import with_data
 
         return cmap(with_data(new_data))(self)
 
-    def over_data(self, func: Callable):
+    def over_data(self, func: Callable[[T], T]):
         from datumlib._datum_utils import over_data
 
         return cmap(over_data(func))(self)
 
-    def over_tags(self, func: Callable):
+    def over_tags(self, func: Callable[[Mapping], Mapping]):
         from datumlib._datum_utils import over_tags
 
         return cmap(over_tags(func))(self)
 
-    def map_data(self, func: Callable):
+    def map_data(self, func: Callable[[Datum[T]], T]):
         from datumlib._datum_utils import map_data
 
         return cmap(map_data(func))(self)
 
-    def map_tags(self, func: Callable):
+    def map_tags(self, func: Callable[[Datum[T]], Mapping]):
         from datumlib._datum_utils import map_tags
 
         return cmap(map_tags(func))(self)
+
+    def add_tags(self, key: str, values: list):
+        return collect(
+            *[
+                x.add_tags({key: val}) if x else None
+                for x, val in zip(self.entries, values)
+            ],
+            tags=self.tags,
+        )
 
 
 def cmap(
@@ -127,29 +136,6 @@ def cmap(
         return collect(*mapped_entries, tags=collection.tags)
 
     return _collection_map
-
-
-def datum(
-    data: Any,
-    tags: Mapping[str, object] | None = None,
-) -> Datum:
-    """Constructs a datum object.
-
-    ```python
-    >>> x = datum(1, {"name": "bob"})
-    >>> x
-    Datum(data=1, tags=mappingproxy({'name': 'bob'}))
-    >>> x.data
-    1
-    >>> x.tags
-    mappingproxy({'name': 'bob'})
-
-    ```
-
-    """
-    return Datum(
-        data=data, tags=MappingProxyType(dict(tags)) if tags else MappingProxyType({})
-    )
 
 
 def collect(

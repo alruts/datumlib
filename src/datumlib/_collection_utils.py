@@ -1,13 +1,16 @@
+from functools import partial
 from logging import warning
 from typing import (
+    Any,
     Callable,
     Optional,
     TypeVar,
 )
 
-from datumlib import Datum, DatumCollection, collect
+from datumlib._containers import Datum, DatumCollection, collect
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 
 def filter_collection(
@@ -17,16 +20,15 @@ def filter_collection(
     return collect(*[x for x in c.valid_entries if predicate(x)], tags=c.tags)
 
 
-def get_tags(
-    c: DatumCollection, key: str, fill_with: object | None = None
-) -> list[object]:
-    """return all tags in a list"""
+def get_tags(c: DatumCollection, key: str, fill_with: object | None = None) -> list:
+    """todo: ..."""
     return [x.tags.get(key, fill_with) for x in c.valid_entries]
 
 
 def group_by_tag(c: DatumCollection, key: str) -> dict[str, DatumCollection]:
+    """todo: ..."""
     all_tags = get_tags(c, key)
-    unique_tags: list[str] = [t for t in all_tags if isinstance(t, str)]
+    unique_tags = set(all_tags)
     return {
         tag: filter_collection(c, lambda m, k=key, t=tag: m.tags.get(k) == t)
         for tag in unique_tags
@@ -142,14 +144,14 @@ def merge(*collections: DatumCollection) -> DatumCollection:
 
 
 def compact(c: DatumCollection) -> DatumCollection:
+    """todo: ..."""
     return collect(*c.valid_entries, tags=c.tags)
 
 
 def sort_by(
     c: DatumCollection,
-    key: Optional[str] = None,
+    key: str,
     reverse: bool = False,
-    key_func: Optional[Callable[[Datum], T]] = None,
 ) -> DatumCollection:
     """
     Sort a DatumCollection.
@@ -170,15 +172,30 @@ def sort_by(
 
     ```
     """
-    if key_func is None and key is None:
-        raise ValueError("Either `key` or `key_func` must be provided.")
 
-    def sorter(d: Datum):
-        if key_func is not None:
-            return key_func(d)
-        if d is None:
-            return float("-inf")  # Keep None entries at start
-        return d.tags.get(key, float("-inf"))  # Use -inf for missing keys
+    def key_fn(entry):
+        return entry.tags.get(key) if entry else ""
 
-    sorted_entries = sorted(c.entries, key=sorter, reverse=reverse)
-    return DatumCollection(sorted_entries, tags=c.tags)
+    sorted_entries = sorted(c.entries, key=key_fn, reverse=reverse)
+    return DatumCollection(tuple(sorted_entries), tags=c.tags)
+
+
+def zip_with(*collections: DatumCollection, func: Callable[[Datum], Any]) -> list[Any]:
+    """Apply a transformation function across aligned entries of multiple
+    DatumCollections, preserving positional correspondence."""
+    return [func(*args) for args in zip(*map(lambda x: x.entries, collections))]
+
+
+def compare_tags(*collections: DatumCollection, keys: list[str]) -> bool:
+    """For each key, verify that all corresponding Datums across collections
+    have identical tag values"""
+
+    def _check_tags(*datums: Datum, key: str) -> bool:
+        return len(datums) > 1 and len({d.tags.get(key) for d in datums}) == 1
+
+    each_key = []
+    for key in keys:
+        all_vals_equal = all(zip_with(*collections, func=partial(_check_tags, key=key)))
+        each_key.append(all_vals_equal)
+
+    return all(each_key)
