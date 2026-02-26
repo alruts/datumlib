@@ -10,12 +10,37 @@ from datumlib._containers import Datum, DatumCollection
 console = Console()
 
 
+def smart_truncate_repr(obj, max_chars=120, max_lines=4):
+
+    try:
+        r = repr(obj)
+    except Exception:
+        return f"<unrepresentable {type(obj).__name__}>"
+
+    lines = r.splitlines()
+
+    # Truncate lines
+    if len(lines) > max_lines:
+        lines = lines[:max_lines] + ["…"]
+
+    r = "\n".join(lines)
+
+    # Truncate chars
+    if len(r) > max_chars:
+        r = r[:max_chars] + " …"
+
+    return r
+
+
 def display_datum(datum: Datum) -> None:
     """Display a Datum using only emphasis (bold/italic) for structure."""
     tree = Tree(f"[bold]{datum.__class__.__name__}[/bold]", guide_style="dim")
 
     # Data
-    tree.add(f"[italic]data[/italic]: [bold]{datum.data!r}[/bold]")
+    tree.add(
+        f"[italic]data[/italic]: [bold]{smart_truncate_repr(datum.data)}[/bold]",
+        expanded=False,
+    )
 
     # Subclass fields
     if is_dataclass(datum):
@@ -60,8 +85,10 @@ def display_collection(collection: DatumCollection) -> None:
             entry_tree = entries_tree.add(
                 f"[bold]{i} {entry.__class__.__name__}[/bold]"
             )
+            # Data
             entry_tree.add(
-                f"[italic]data[/italic]: [bold]{getattr(entry, 'data', None)!r}[/bold]"
+                f"[italic]data[/italic]: [bold]{smart_truncate_repr(entry.data)}[/bold]",
+                expanded=False,
             )
 
             if is_dataclass(entry):

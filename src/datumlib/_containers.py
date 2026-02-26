@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import (
-    Any,
     Callable,
     Generic,
     Mapping,
     Optional,
     TypeVar,
 )
+
 
 T = TypeVar("T")
 
@@ -37,6 +37,9 @@ class Datum(Generic[T]):
         from datumlib._datum_utils import over_tags
 
         return over_tags(func)(self)
+
+    def map_void(self, func: Callable[["Datum[T]"], None]) -> None:
+        return func(self)
 
     def map_data(self, func: Callable[["Datum[T]"], T]):
         from datumlib._datum_utils import map_data
@@ -96,6 +99,9 @@ class DatumCollection(Generic[T]):
 
         return cmap(over_tags(func))(self)
 
+    def map_void(self, func: Callable[["Datum[T]"], None]) -> None:
+        [func(x) for x in self.valid_entries]
+
     def map_data(self, func: Callable[[Datum[T]], T]):
         from datumlib._datum_utils import map_data
 
@@ -115,23 +121,45 @@ class DatumCollection(Generic[T]):
             tags=self.tags,
         )
 
+    def sort_by(self, key: str, reverse=False):
+        from datumlib._collection_utils import sort_by
+
+        return sort_by(self, key, reverse)
+
 
 def cmap(
-    func: Callable[[Datum], Datum], *, pass_tags: Optional[tuple[str]] = None
+    func: Callable[[Datum], Datum],
+    *,
+    parallel: bool = False,
+    max_workers: Optional[int] = None,
 ) -> Callable[[DatumCollection], DatumCollection]:
-    """Lift a datum transformation to operate over datum collections."""
+    """Lift a datum transformation to operate over datum collections.
+
+    If parallel=True, mapping is executed using a ThreadPoolExecutor.
+    """
+
+    def _apply(x: Optional[Datum], *args: object, **kwargs: object) -> Optional[Datum]:
+        if x is None:
+            return None
+        return func(x, *args, **kwargs)
 
     def _collection_map(
         collection: DatumCollection, *args: object, **kwargs: object
     ) -> DatumCollection:
-        mapped_entries: list[Optional[Datum]] = []
-        for x in collection.entries:
-            if x is None:
-                mapped_entries.append(None)
-                continue
 
-            kwds = {k: x.tags.get(k) for k in pass_tags} if pass_tags else {}
-            mapped_entries.append(func(x, *args, **(kwargs | kwds)))
+        if not parallel:
+            mapped_entries = [_apply(x, *args, **kwargs) for x in collection.entries]
+        else:
+            from concurrent.futures import ThreadPoolExecutor
+            from functools import partial
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                mapped_entries = list(
+                    executor.map(
+                        partial(_apply, *args, **kwargs),
+                        collection.entries,
+                    )
+                )
 
         return collect(*mapped_entries, tags=collection.tags)
 
