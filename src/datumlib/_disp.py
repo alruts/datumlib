@@ -11,7 +11,6 @@ console = Console()
 
 
 def smart_truncate_repr(obj, max_chars=120, max_lines=4):
-
     try:
         r = repr(obj)
     except Exception:
@@ -27,7 +26,7 @@ def smart_truncate_repr(obj, max_chars=120, max_lines=4):
 
     # Truncate chars
     if len(r) > max_chars:
-        r = r[:max_chars] + " …"
+        r = r[:max_chars] + " ..."
 
     return r
 

@@ -8,7 +8,6 @@ from typing import (
     TypeVar,
 )
 
-
 T = TypeVar("T")
 
 
@@ -146,7 +145,6 @@ def cmap(
     def _collection_map(
         collection: DatumCollection, *args: object, **kwargs: object
     ) -> DatumCollection:
-
         if not parallel:
             mapped_entries = [_apply(x, *args, **kwargs) for x in collection.entries]
         else:

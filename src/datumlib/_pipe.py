@@ -1,8 +1,8 @@
 from typing import Callable, Collection, Mapping, Optional
 
-
-from datumlib._containers import Datum, DatumCollection, cmap, T
 from tqdm import tqdm
+
+from datumlib._containers import Datum, DatumCollection, T, cmap
 
 DatumContainer = Datum[T] | DatumCollection[T]
 
